@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{TITLE}}</title>
+  <link rel="icon" type="image/png" href="read.png">
+  <link rel="apple-touch-icon" href="read.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      padding-bottom: 74px;
+    }
+    .nav-btn.active {
+      color: #2563eb;
+      font-weight: 800;
+    }
+    .nav-btn.active svg {
+      stroke: #2563eb;
+      stroke-width: 2.5;
+    }
+    /*ROOM_CSS*/
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+
+    /* 當前時間單元格微微亮光呼吸動畫 */
+    @keyframes current-glow {
+      0%, 100% {
+        box-shadow: inset 0 0 0 2px #3b82f6, 0 0 14px rgba(59, 130, 246, 0.45);
+        background-color: rgba(239, 246, 255, 0.95);
+      }
+      50% {
+        box-shadow: inset 0 0 0 2px #2563eb, 0 0 22px rgba(37, 99, 235, 0.7);
+        background-color: rgba(219, 234, 254, 0.98);
+      }
+    }
+    .current-slot-highlight {
+      position: relative !important;
+      animation: current-glow 2.4s ease-in-out infinite !important;
+      z-index: 10 !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 py-2.5 shadow-xs">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">{{SHORT}}</span>
+        <h1 class="text-sm sm:text-base font-extrabold text-slate-800">{{TITLE}}</h1>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <div id="live-time-indicator" class="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border border-blue-200 bg-blue-50 text-blue-800 shadow-2xs">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="live-time-text">讀取中...</span>
+        </div>
+        <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">{{SEMESTER}}</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-4xl mx-auto px-1 sm:px-3 py-2">
+
+    <!-- ==================== 1. 查教室 (Classroom View - 預設首頁) ==================== -->
+    <div id="view-classroom" class="view-panel space-y-2">
+      <!-- Room Tabs -->
+      <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-0.5" id="cview-room-selector">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Container -->
+      <div id="cview-content-container">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ==================== 2. 查老師 (Teacher View) ==================== -->
+    <div id="view-teacher" class="view-panel hidden space-y-2">
+      <!-- Teacher Tabs -->
+      <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-0.5" id="tview-teacher-selector">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Teacher Info Badge -->
+      <div class="bg-blue-50 border border-blue-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-xs" id="tview-header-info">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Container -->
+      <div id="tview-content-container">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Groups List -->
+      <div class="bg-white rounded-xl border border-slate-200 p-2.5 shadow-xs" id="tview-groups-block">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ==================== 3. 查學生 (Student View - 表格呈現) ==================== -->
+    <div id="view-search" class="view-panel hidden space-y-2">
+      <div class="bg-white rounded-xl border border-slate-200 p-2.5 shadow-xs space-y-2">
+        <div class="flex items-center gap-2">
+          <div class="relative flex-grow">
+            <input type="text" id="mobile-search-input" oninput="handleStudentSearch(this.value)" placeholder="輸入姓名 (如: {{EXAMPLE_NAME}}) 或班級 (如: {{EXAMPLE_CLASS}})..." 
+              class="w-full pl-8 pr-7 py-1.5 rounded-lg border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50">
+            <span class="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
+            <button onclick="clearStudentSearch()" id="btn-search-clear" class="hidden absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          <select id="student-dropdown" onchange="selectStudentByName(this.value)" class="shrink-0 bg-slate-100 border border-slate-300 text-slate-700 text-xs rounded-lg px-2 py-1.5 font-bold focus:outline-none">
+            <!-- Rendered by JS -->
+          </select>
+        </div>
+
+        <!-- Class Quick Filter Pills -->
+        <div class="flex items-center gap-1 overflow-x-auto hide-scrollbar text-[11px] pt-0.5" id="stu-class-chips">
+          <span class="text-slate-400 font-bold shrink-0">年級班級：</span>
+          <button onclick="filterByClass('全部')" class="stu-class-chip px-2 py-0.5 rounded font-bold bg-blue-600 text-white shrink-0" data-c="全部">全部</button>
+        </div>
+
+        <!-- Student Chips Selector -->
+        <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-0.5" id="student-chips-list">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Student Info Header Card -->
+      <div id="student-info-card" class="bg-blue-50 border border-blue-200 rounded-xl p-2.5 shadow-xs">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Student Weekly Timetable (表格呈現！) -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden" id="student-table-wrapper">
+        <table class="w-full table-fixed text-center text-xs divide-y divide-slate-200">
+          <thead class="bg-slate-100 font-bold text-slate-700">
+            <tr>
+              <th class="py-1.5 px-0.5 w-[14%] border-r border-slate-200 text-[11px] leading-tight">節次</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">一</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">二</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">三</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">四</th>
+              <th class="py-1.5 px-0.5 w-[17.2%]">五</th>
+            </tr>
+          </thead>
+          <tbody id="student-table-body" class="divide-y divide-slate-100 bg-white">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 py-1.5 px-4 shadow-lg">
+    <div class="max-w-md mx-auto grid grid-cols-3 gap-1 text-center">
+      <button onclick="switchNav('classroom')" id="nav-classroom" class="nav-btn active flex flex-col items-center py-1 text-slate-400">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+        <span class="text-[10px]">查教室</span>
+      </button>
+
+      <button onclick="switchNav('teacher')" id="nav-teacher" class="nav-btn flex flex-col items-center py-1 text-slate-400">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+        <span class="text-[10px]">查各師</span>
+      </button>
+
+      <button onclick="switchNav('search')" id="nav-search" class="nav-btn flex flex-col items-center py-1 text-slate-400">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <span class="text-[10px]">查學生</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ==================== GROUP STUDENTS POPUP MODAL ==================== -->
+  <div id="group-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-xl border border-slate-200 space-y-3 transform transition">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-blue-600"></span>
+          <h3 class="text-base font-black text-slate-800" id="modal-group-title">組別代號</h3>
+        </div>
+        <button onclick="closeGroupModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="space-y-2.5 text-xs" id="modal-group-content">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-2 border-t border-slate-100 text-right">
+        <button onclick="closeGroupModal()" class="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    const DATA = /*DATA_JSON*/;
+
+    // 老師簡稱：DATA.teachers[].short，沒填就用「姓＋師」
+    function tName(n) {
+      if (!n) return '';
+      const t = DATA.teachers.find(x => x.name === n);
+      return (t && t.short) || (n.length >= 2 ? n[0] + '師' : n);
+    }
+    function pTitle(p) {
+      if (p === '早修' || p === '午休') return p;
+      return '第' + p + '節';
+    }
+
+    // 組別顏色由 build.py 依「學生名單相同＝同色」指定，存在 DATA.groups[code].color
+    function getGroupColor(code) {
+      const g = DATA.groups[code];
+      return (g && g.color) || 'bg-slate-100 text-slate-800 border-slate-300';
+    }
+
+    const PERIODS = DATA.period_keys;
+    const DAYS = DATA.days;
+    const ROOMS = DATA.classrooms;
+    const ROOM_NAMES = Object.fromEntries(DATA.rooms.map(r => [r.key, r.short || r.key]));
+    const ROOM_IDX = Object.fromEntries(DATA.rooms.map((r, i) => [r.key, i]));
+    function roomCls(r) { return 'room-tag-' + (ROOM_IDX[r] !== undefined ? ROOM_IDX[r] : 'x'); }
+    const TEACHERS = DATA.teachers.map(t => t.name);
+
+    let currentNav = 'classroom';
+
+    let cviewRoom = ROOMS[0];
+    let tviewTeacher = TEACHERS[0];
+    
+    const ALL_STUDENTS = Object.values(DATA.students).sort((a, b) => (a.class || '').localeCompare(b.class || ''));
+    let selectedStudentName = ALL_STUDENTS[0] ? ALL_STUDENTS[0].name : '';
+    let selectedClassFilter = '全部';
+
+    function findSession(day, period, room) {
+      return DATA.schedules.find(s => s.day === day && s.period === period && s.room === room);
+    }
+
+    function findTeacherSession(teacher, day, period) {
+      return DATA.schedules.find(s => s.teacher === teacher && s.day === day && s.period === period);
+    }
+
+    function findStudentSession(studentName, day, period) {
+      return DATA.schedules.find(s => s.day === day && s.period === period && s.students && s.students.includes(studentName));
+    }
+
+    function toMin(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+    // 依 DATA.period_times 判斷現在是哪一節（節次結束後 5 分鐘內顯示「下課」）
+    function getCurrentSlot() {
+      const now = new Date();
+      const dayMap = { 1: DAYS[0], 2: DAYS[1], 3: DAYS[2], 4: DAYS[3], 5: DAYS[4] };
+      const currentDay = dayMap[now.getDay()];
+      if (!currentDay) return { isSchoolDay: false, day: null, period: null, text: '週末放假' };
+      const mins = now.getHours() * 60 + now.getMinutes();
+      const first = DATA.period_times[PERIODS[0]];
+      if (mins < toMin(first.start) - 5) return { isSchoolDay: true, day: currentDay, period: null, text: '未開始上課' };
+      for (const p of PERIODS) {
+        const pt = DATA.period_times[p];
+        const end = toMin(pt.end);
+        if (mins <= end + 5) {
+          const label = pt.name || pTitle(p);
+          let text = `週${currentDay} ${label}`;
+          if (p === '午休') text = `週${currentDay} 午餐/午休`;
+          else if (mins > end) text += '下課';
+          return { isSchoolDay: true, day: currentDay, period: p, text };
+        }
+      }
+      return { isSchoolDay: true, day: currentDay, period: null, text: '本日課程結束' };
+    }
+
+    function updateLiveStatus() {
+      const slot = getCurrentSlot();
+      const textEl = document.getElementById('live-time-text');
+      const indEl = document.getElementById('live-time-indicator');
+      if (textEl && indEl) {
+        textEl.textContent = slot.text;
+        if (slot.period) {
+          indEl.className = 'flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border border-blue-300 bg-blue-50 text-blue-800 shadow-xs';
+        } else {
+          indEl.className = 'flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600';
+        }
+      }
+    }
+
+    function switchNav(navId) {
+      currentNav = navId;
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('nav-' + navId).classList.add('active');
+
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById('view-' + navId).classList.remove('hidden');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (navId === 'classroom') renderClassroomView();
+      if (navId === 'teacher') renderTeacherView();
+      if (navId === 'search') renderStudentView();
+    }
+
+    // ==================== GROUP MODAL POPUP ====================
+    function showGroupModal(gCode) {
+      const grp = DATA.groups[gCode];
+      const titleEl = document.getElementById('modal-group-title');
+      const bodyEl = document.getElementById('modal-group-content');
+
+      titleEl.textContent = gCode;
+
+      if (!grp) {
+        bodyEl.innerHTML = `<div class="text-slate-400 py-3 text-center">暫無此組詳細名單</div>`;
+      } else {
+        const sessList = DATA.schedules.filter(s => s.group === gCode);
+        const studentList = grp.students ? grp.students.split('、').map(s => s.trim()).filter(Boolean) : [];
+
+        bodyEl.innerHTML = `
+          <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div>
+              <span class="text-slate-400 text-[10px] font-bold block">任課教師</span>
+              <span class="font-extrabold text-slate-800 text-sm">${tName(grp.teacher)} (${grp.teacher})</span>
+            </div>
+            <div class="text-right">
+              <span class="text-slate-400 text-[10px] font-bold block">方式 / 節數</span>
+              <span class="font-bold text-blue-700">${grp.method || '抽離'}</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="font-bold text-slate-700">學生分組名單：</span>
+              <span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[11px]">${grp.headcount || studentList.length + '人'}</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              ${studentList.map(st => `
+                <span class="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 font-bold text-xs">
+                  ${st}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100">
+            <span class="font-bold text-slate-700 block mb-1">每週上課時段與教室：</span>
+            <div class="space-y-1">
+              ${sessList.map(cs => `
+                <div class="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100 text-[11px]">
+                  <span class="font-bold text-slate-800">週${cs.day} 第${cs.period}節</span>
+                  <span class="font-black px-1.5 py-0.2 rounded ${roomCls(cs.room)}">${ROOM_NAMES[cs.room] || cs.room}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      const modal = document.getElementById('group-modal');
+      modal.classList.remove('hidden');
+    }
+
+    function closeGroupModal() {
+      const modal = document.getElementById('group-modal');
+      modal.classList.add('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const modal = document.getElementById('group-modal');
+      if (e.target === modal) closeGroupModal();
+    });
+
+    // ==================== 1. 查教室 ====================
+    function renderClassroomView() {
+      const rSel = document.getElementById('cview-room-selector');
+      rSel.innerHTML = '';
+      ROOMS.forEach(r => {
+        const btn = document.createElement('button');
+        const active = (cviewRoom === r);
+        btn.className = `px-3.5 py-1.5 rounded-lg text-xs font-bold shrink-0 transition ${active ? 'bg-blue-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700'}`;
+        btn.textContent = ROOM_NAMES[r];
+        btn.onclick = () => { cviewRoom = r; renderClassroomView(); };
+        rSel.appendChild(btn);
+      });
+
+      renderClassroomContent();
+    }
+
+    function renderClassroomContent() {
+      const container = document.getElementById('cview-content-container');
+      container.innerHTML = '';
+      const curSlot = getCurrentSlot();
+
+      const tableBox = document.createElement('div');
+      tableBox.className = 'bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden';
+      
+      let tableHtml = `
+        <table class="w-full table-fixed text-center text-xs divide-y divide-slate-200">
+          <thead class="bg-slate-100 font-bold text-slate-700">
+            <tr>
+              <th class="py-1.5 px-0.5 w-[14%] border-r border-slate-200 text-[11px] leading-tight">節次</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">一</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">二</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">三</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">四</th>
+              <th class="py-1.5 px-0.5 w-[17.2%]">五</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 bg-white">
+      `;
+
+      PERIODS.forEach(p => {
+        const pInfo = DATA.period_times[p] || { start: '', end: '' };
+        const isPeriodNow = (curSlot && curSlot.period === p);
+        tableHtml += `
+          <tr class="hover:bg-slate-50/70 transition">
+            <td class="py-1.5 px-0.5 border-r border-slate-200 ${isPeriodNow ? 'bg-blue-100/80 font-black text-blue-900 ring-1 ring-inset ring-blue-300' : 'bg-slate-50 font-bold text-slate-800'} text-center">
+              <div class="text-[11px] font-black leading-tight">${pTitle(p)}</div>
+              <div class="text-[9px] text-slate-400 font-normal leading-tight mt-0.5 tracking-tighter">${pInfo.start}<br>~${pInfo.end}</div>
+            </td>
+        `;
+
+        DAYS.forEach(d => {
+          const sess = findSession(d, p, cviewRoom);
+          const isNow = (curSlot && curSlot.day === d && curSlot.period === p);
+          const nowClass = isNow ? 'current-slot-highlight' : '';
+          const nowBadge = isNow ? `<span class="absolute top-0.5 right-0.5 flex h-2 w-2 pointer-events-none z-30"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span></span>` : '';
+
+          if (sess) {
+            const colorCls = getGroupColor(sess.group);
+            tableHtml += `
+              <td class="py-1.5 px-0.5 border-r border-slate-200 text-center bg-blue-50/40 align-middle ${nowClass}">
+                ${nowBadge}
+                <div class="font-black text-slate-900 text-[11px] leading-tight mb-0.5">${tName(sess.teacher)}</div>
+                <button onclick="showGroupModal('${sess.group}')" class="inline-block text-[10px] px-1 py-0.5 rounded font-black border leading-tight ${colorCls} max-w-full break-words shadow-2xs">
+                  ${sess.group}
+                </button>
+              </td>
+            `;
+          } else {
+            tableHtml += `
+              <td class="py-1.5 px-0.5 border-r border-slate-200 text-center align-middle text-slate-300 bg-white ${nowClass}">
+                ${nowBadge}
+                <div class="text-[10px] font-medium text-slate-300 leading-tight">○ 空<br><span class="text-[8.5px] text-slate-300">(鎖)</span></div>
+              </td>
+            `;
+          }
+        });
+
+        tableHtml += '</tr>';
+      });
+
+      tableHtml += '</tbody></table>';
+      tableBox.innerHTML = tableHtml;
+      container.appendChild(tableBox);
+    }
+
+    // ==================== 2. 查老師 ====================
+    function renderTeacherView() {
+      const tSel = document.getElementById('tview-teacher-selector');
+      tSel.innerHTML = '';
+      TEACHERS.forEach(t => {
+        const btn = document.createElement('button');
+        const active = (tviewTeacher === t);
+        btn.className = `px-3.5 py-1.5 rounded-lg text-xs font-black shrink-0 transition ${active ? 'bg-blue-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700'}`;
+        btn.textContent = tName(t);
+        btn.onclick = () => { tviewTeacher = t; renderTeacherView(); };
+        tSel.appendChild(btn);
+      });
+
+      const tInfo = DATA.teachers.find(t => t.name === tviewTeacher) || { hours: '' };
+      document.getElementById('tview-header-info').innerHTML = `
+        <span class="font-black text-slate-900 text-sm">${tName(tviewTeacher)} (${tviewTeacher})</span>
+        <span class="text-blue-700 font-bold">${tInfo.hours}</span>
+      `;
+
+      renderTeacherContent();
+    }
+
+    function renderTeacherContent() {
+      const container = document.getElementById('tview-content-container');
+      container.innerHTML = '';
+      const curSlot = getCurrentSlot();
+
+      const tableBox = document.createElement('div');
+      tableBox.className = 'bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden';
+      
+      let tableHtml = `
+        <table class="w-full table-fixed text-center text-xs divide-y divide-slate-200">
+          <thead class="bg-slate-100 font-bold text-slate-700">
+            <tr>
+              <th class="py-1.5 px-0.5 w-[14%] border-r border-slate-200 text-[11px] leading-tight">節次</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">一</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">二</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">三</th>
+              <th class="py-1.5 px-0.5 w-[17.2%] border-r border-slate-200">四</th>
+              <th class="py-1.5 px-0.5 w-[17.2%]">五</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 bg-white">
+      `;
+
+      PERIODS.forEach(p => {
+        const pInfo = DATA.period_times[p] || { start: '', end: '' };
+        const isPeriodNow = (curSlot && curSlot.period === p);
+        tableHtml += `
+          <tr class="hover:bg-slate-50/70 transition">
+            <td class="py-1.5 px-0.5 border-r border-slate-200 ${isPeriodNow ? 'bg-blue-100/80 font-black text-blue-900 ring-1 ring-inset ring-blue-300' : 'bg-slate-50 font-bold text-slate-800'} text-center">
+              <div class="text-[11px] font-black leading-tight">${pTitle(p)}</div>
+              <div class="text-[9px] text-slate-400 font-normal leading-tight mt-0.5 tracking-tighter">${pInfo.start}<br>~${pInfo.end}</div>
+            </td>
+        `;
+
+        DAYS.forEach(d => {
+          const sess = findTeacherSession(tviewTeacher, d, p);
+          const isNow = (curSlot && curSlot.day === d && curSlot.period === p);
+          const nowClass = isNow ? 'current-slot-highlight' : '';
+          const nowBadge = isNow ? `<span class="absolute top-0.5 right-0.5 flex h-2 w-2 pointer-events-none z-30"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span></span>` : '';
+
+          if (sess) {
+            const colorCls = getGroupColor(sess.group);
+            tableHtml += `
+              <td class="py-1.5 px-0.5 border-r border-slate-200 text-center bg-blue-50/40 align-middle ${nowClass}">
+                ${nowBadge}
+                <div class="mb-0.5">
+                  <button onclick="showGroupModal('${sess.group}')" class="inline-block text-[10px] px-1 py-0.5 rounded font-black border leading-tight ${colorCls} max-w-full break-words shadow-2xs">
+                    ${sess.group}
+                  </button>
+                </div>
+                <span class="text-[9.5px] px-1 py-0.2 rounded font-black ${roomCls(sess.room)}">${ROOM_NAMES[sess.room] || sess.room}</span>
+              </td>
+            `;
+          } else {
+            tableHtml += `
+              <td class="py-1.5 px-0.5 border-r border-slate-200 text-center align-middle text-slate-300 bg-white ${nowClass}">
+                ${nowBadge}
+                <div class="text-[10px] text-slate-300 leading-tight">空堂</div>
+              </td>
+            `;
+          }
+        });
+
+        tableHtml += '</tr>';
+      });
+
+      tableHtml += '</tbody></table>';
+      tableBox.innerHTML = tableHtml;
+      container.appendChild(tableBox);
+
+      // Groups list block
+      const gBlock = document.getElementById('tview-groups-block');
+      const teacherGroups = Object.values(DATA.groups).filter(g => g.teacher === tviewTeacher);
+      gBlock.innerHTML = `
+        <div class="text-xs font-bold text-slate-700 mb-2">任教分組名單 (${teacherGroups.length} 組，點擊查看學生)：</div>
+        <div class="grid grid-cols-2 gap-1.5">
+          ${teacherGroups.map(g => {
+            const colorCls = getGroupColor(g.code);
+            return `
+            <button onclick="showGroupModal('${g.code}')" class="p-2 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200 text-left transition text-xs">
+              <div class="flex items-center justify-between font-bold">
+                <span class="text-xs px-1.5 py-0.2 rounded font-black border ${colorCls}">${g.code}</span>
+                <span class="text-[10px] text-slate-400">${g.headcount}</span>
+              </div>
+              <div class="text-[10px] text-slate-500 mt-1">${g.method}</div>
+            </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // ==================== 3. 查學生 (表格呈現！) ====================
+    function renderStudentView() {
+      const dd = document.getElementById('student-dropdown');
+      dd.innerHTML = '';
+      ALL_STUDENTS.forEach(st => {
+        const opt = document.createElement('option');
+        opt.value = st.name;
+        opt.textContent = `${st.class} ${st.name} (${tName(st.case_teacher)})`;
+        if (st.name === selectedStudentName) opt.selected = true;
+        dd.appendChild(opt);
+      });
+
+      renderStudentChips();
+      renderSelectedStudentTable();
+    }
+
+    function renderStudentChips() {
+      const chipsContainer = document.getElementById('student-chips-list');
+      chipsContainer.innerHTML = '';
+
+      let list = ALL_STUDENTS;
+      if (selectedClassFilter !== '全部') {
+        list = ALL_STUDENTS.filter(s => (s.class || '').startsWith(selectedClassFilter));
+      }
+
+      list.forEach(st => {
+        const btn = document.createElement('button');
+        const active = (st.name === selectedStudentName);
+        btn.className = `px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition ${active ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`;
+        btn.textContent = `${st.class ? st.class + ' ' : ''}${st.name}`;
+        btn.onclick = () => {
+          selectStudentByName(st.name);
+        };
+        chipsContainer.appendChild(btn);
+      });
+    }
+
+    function renderClassChips() {
+      const wrap = document.getElementById('stu-class-chips');
+      const classes = [...new Set(ALL_STUDENTS.map(s => s.class).filter(Boolean))].sort();
+      classes.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'stu-class-chip px-2 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0';
+        btn.dataset.c = c;
+        btn.textContent = c;
+        btn.onclick = () => filterByClass(c);
+        wrap.appendChild(btn);
+      });
+    }
+
+    function filterByClass(cls) {
+      selectedClassFilter = cls;
+      document.querySelectorAll('.stu-class-chip').forEach(btn => {
+        if (btn.dataset.c === cls) {
+          btn.className = 'stu-class-chip px-2 py-0.5 rounded font-bold bg-blue-600 text-white shrink-0 shadow-xs';
+        } else {
+          btn.className = 'stu-class-chip px-2 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0';
+        }
+      });
+      renderStudentChips();
+      
+      let list = ALL_STUDENTS;
+      if (cls !== '全部') {
+        list = ALL_STUDENTS.filter(s => (s.class || '').startsWith(cls));
+      }
+      if (list.length > 0 && !list.some(s => s.name === selectedStudentName)) {
+        selectStudentByName(list[0].name);
+      }
+    }
+
+    function selectStudentByName(name) {
+      selectedStudentName = name;
+      const dd = document.getElementById('student-dropdown');
+      if (dd) dd.value = name;
+      renderStudentChips();
+      renderSelectedStudentTable();
+    }
+
+    function handleStudentSearch(val) {
+      const term = val.trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-search-clear');
+      if (term) clearBtn.classList.remove('hidden');
+      else clearBtn.classList.add('hidden');
+
+      if (!term) {
+        renderStudentChips();
+        return;
+      }
+
+      const matched = ALL_STUDENTS.find(s => 
+        (s.name && s.name.toLowerCase().includes(term)) ||
+        (s.class && s.class.toLowerCase().includes(term))
+      );
+      if (matched) {
+        selectStudentByName(matched.name);
+      }
+    }
+
+    function clearStudentSearch() {
+      document.getElementById('mobile-search-input').value = '';
+      document.getElementById('btn-search-clear').classList.add('hidden');
+      renderStudentChips();
+    }
+
+    function renderSelectedStudentTable() {
+      const st = DATA.students[selectedStudentName] || ALL_STUDENTS.find(s => s.name === selectedStudentName);
+      if (!st) return;
+
+      let totalHours = 0;
+      PERIODS.forEach(p => {
+        DAYS.forEach(d => {
+          if (findStudentSession(st.name, d, p)) totalHours++;
+        });
+      });
+
+      const infoCard = document.getElementById('student-info-card');
+      infoCard.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-base font-black text-slate-900">${st.name}</span>
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">${st.class} 班</span>
+            ${st.seat ? `<span class="text-xs text-slate-500 font-medium">座號 ${st.seat}</span>` : ''}
+          </div>
+          <span class="text-xs font-extrabold text-blue-700 bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-2xs">
+            特教抽離/外加 ${totalHours} 節
+          </span>
+        </div>
+        <div class="flex items-center justify-between text-xs text-slate-600 mt-1.5 pt-1.5 border-t border-blue-100">
+          <span>個管：<strong class="text-slate-800 font-bold">${tName(st.case_teacher) || '未註記'}</strong></span>
+          <span>原班導師：<strong class="text-slate-800 font-bold">${st.homeroom_teacher || '未註記'}</strong></span>
+        </div>
+      `;
+
+      const tbody = document.getElementById('student-table-body');
+      tbody.innerHTML = '';
+      const curSlot = getCurrentSlot();
+
+      PERIODS.forEach(p => {
+        const pInfo = DATA.period_times[p] || { start: '', end: '' };
+        const isPeriodNow = (curSlot && curSlot.period === p);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/70 transition';
+
+        let rowHtml = `
+          <td class="py-1.5 px-0.5 border-r border-slate-200 ${isPeriodNow ? 'bg-blue-100/80 font-black text-blue-900 ring-1 ring-inset ring-blue-300' : 'bg-slate-50 font-bold text-slate-800'} text-center">
+            <div class="text-[11px] font-black leading-tight">${pTitle(p)}</div>
+            <div class="text-[9px] text-slate-400 font-normal leading-tight mt-0.5 tracking-tighter">${pInfo.start}<br>~${pInfo.end}</div>
+          </td>
+        `;
+
+        DAYS.forEach(d => {
+          const sess = findStudentSession(st.name, d, p);
+          const isNow = (curSlot && curSlot.day === d && curSlot.period === p);
+          const nowClass = isNow ? 'current-slot-highlight' : '';
+          const nowBadge = isNow ? `<span class="absolute top-0.5 right-0.5 flex h-2 w-2 pointer-events-none z-30"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span></span>` : '';
+
+          if (sess) {
+            const colorCls = getGroupColor(sess.group);
+            rowHtml += `
+              <td class="py-1.5 px-0.5 border-r border-slate-200 text-center bg-blue-50/50 align-middle ${nowClass}">
+                ${nowBadge}
+                <div class="mb-0.5">
+                  <button onclick="showGroupModal('${sess.group}')" class="inline-block text-[10px] px-1 py-0.5 rounded font-black border leading-tight ${colorCls} max-w-full break-words">
+                    ${sess.group}
+                  </button>
+                </div>
+                <div class="flex items-center justify-center gap-0.5 text-[9.5px] leading-tight">
+                  <span class="font-bold text-slate-800">${tName(sess.teacher)}</span>
+                  <span class="text-[8.5px] px-0.5 py-0.2 rounded font-black ${roomCls(sess.room)}">${ROOM_NAMES[sess.room] || sess.room}</span>
+                </div>
+              </td>
+            `;
+          } else {
+            rowHtml += `
+              <td class="py-1.5 px-0.5 border-r border-slate-200 text-center align-middle text-slate-300 bg-white ${nowClass}">
+                ${nowBadge}
+                <span class="text-[10px] font-medium text-slate-300">原班</span>
+              </td>
+            `;
+          }
+        });
+
+        rowHtml += '</tr>';
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderClassChips();
+      renderClassroomView();
+      updateLiveStatus();
+
+      // 每 15 秒更新一次頂部時段狀態
+      setInterval(updateLiveStatus, 15000);
+
+      // 每 30 秒偵測是否跨節，自動將亮光切換至下一節
+      let prevSlotKey = '';
+      setInterval(() => {
+        const slot = getCurrentSlot();
+        const currentKey = `${slot.day}-${slot.period}`;
+        if (currentKey !== prevSlotKey) {
+          prevSlotKey = currentKey;
+          if (currentNav === 'classroom') renderClassroomContent();
+          if (currentNav === 'teacher') renderTeacherContent();
+          if (currentNav === 'search') renderSelectedStudentTable();
+        }
+      }, 30000);
+    });
+  </script>
+</body>
+</html>
+

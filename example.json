@@ -1,0 +1,40 @@
+{
+  "title": "○○特教課表",
+  "short": "○",
+  "semester": "115-1",
+  "teachers": [
+    { "name": "王老師", "short": "王師" },
+    { "name": "李老師", "short": "李師", "hours": "15節 (課堂14節 + 間接服務1節)" }
+  ],
+  "rooms": [
+    { "key": "教A", "label": "學習教室 A" },
+    { "key": "教B", "label": "學習教室 B" },
+    { "key": "團", "label": "團體活動室" }
+  ],
+  "groups": [
+    {
+      "code": "國A701",
+      "teacher": "王老師",
+      "method": "抽離 2節",
+      "students": ["701 甲同學", "701 乙同學"],
+      "slots": [["一", "2", "教A"], ["三", "3", "教A"]]
+    },
+    {
+      "code": "數B802",
+      "teacher": "李老師",
+      "method": "抽離 2節",
+      "students": ["802 丙同學", "802 丁同學", "803 戊同學"],
+      "slots": [["二", "1", "教B"], ["四", "4", "教B"]]
+    },
+    {
+      "code": "社會技巧A",
+      "teacher": "王老師",
+      "method": "外加 1節",
+      "students": ["701 甲同學", "802 丙同學"],
+      "slots": [["五", "午休", "團"]]
+    }
+  ],
+  "students": [
+    { "name": "甲同學", "seat": "5", "case_teacher": "王老師", "homeroom_teacher": "陳老師" }
+  ]
+}
